@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Le Manuscrit">
+<title>Le Manuscrit</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22><rect width=%22192%22 height=%22192%22 fill=%22%230a0a0a%22/><text x=%2296%22 y=%22130%22 font-size=%22120%22 font-family=%22serif%22 fill=%22%23C8A96E%22 text-anchor=%22middle%22>M</text></svg>'>
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --or: #C8A96E;
+  --or-clair: #d4ba85;
+  --or-fonce: #a88a52;
+  --noir: #0a0a0a;
+  --noir-2: #141414;
+  --noir-3: #1c1c1c;
+  --gris: #888;
+  --gris-clair: #b8b8b8;
+  --beige: #f5f1e8;
+  --rouge: #c87a6e;
+  --vert: #6ec88a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body {
+  height: 100%; height: 100dvh; overflow: hidden;
+  background: var(--noir); color: var(--beige);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 17px; line-height: 1.55;
+}
+body { display: flex; flex-direction: column; }
+
+.topbar {
+  background: var(--noir);
+  padding: 6px 8px;
+  display: flex; align-items: center; gap: 2px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #1c1c1c;
+}
+.btn-icon, .btn-nav {
+  background: transparent; border: none;
+  color: var(--or);
+  width: 34px; height: 34px; border-radius: 6px;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit; flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-icon:active, .btn-nav:active:not(:disabled) {
+  background: rgba(200, 169, 110, 0.18);
+}
+.btn-icon.actif {
+  background: rgba(200, 169, 110, 0.22);
+  color: var(--or-clair);
+}
+.btn-icon:disabled, .btn-nav:disabled { opacity: 0.25; color: #555; }
+
+select.chapitre-select {
+  flex: 1; background: transparent; color: var(--or-clair);
+  border: none; padding: 6px 22px 6px 4px;
+  font-family: inherit; font-size: 14px; font-style: italic;
+  min-width: 0;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23C8A96E' stroke-width='1.5' fill='none'/></svg>");
+  background-repeat: no-repeat; background-position: right 4px center; background-size: 10px;
+  outline: none; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
+}
+
+.split-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.pane { overflow: hidden; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.pane-haut { flex: 0 0 55%; background: var(--noir); }
+.pane-bas { flex: 1; background: var(--noir-2); min-height: 80px; }
+
+.divider {
+  height: 8px; background: transparent; cursor: ns-resize;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; touch-action: none; position: relative; z-index: 10;
+}
+.divider::before {
+  content: ''; width: 40px; height: 1px;
+  background: var(--or-fonce); border-radius: 1px;
+  transition: all 0.2s;
+}
+.divider:active::before, .divider.dragging::before {
+  background: var(--or); width: 60px; height: 2px;
+}
+.divider.dragging { background: rgba(200, 169, 110, 0.06); }
+
+.indicateur-edition {
+  position: absolute; top: 4px; right: 12px;
+  font-size: 9px; color: var(--or); font-style: italic;
+  pointer-events: none; z-index: 5; opacity: 0;
+  transition: opacity 0.3s; letter-spacing: 2px;
+  text-transform: uppercase;
+  background: rgba(10, 10, 10, 0.7);
+  padding: 2px 6px; border-radius: 3px;
+}
+.indicateur-edition.actif { opacity: 0.8; }
+
+.compteur-flottant {
+  position: absolute; bottom: 4px; right: 10px;
+  font-size: 10px; color: rgba(136, 136, 136, 0.45);
+  font-style: italic; pointer-events: none; z-index: 5;
+  transition: opacity 0.3s;
+}
+.compteur-flottant.vide { opacity: 0; }
+
+.lecture {
+  flex: 1; overflow-y: auto;
+  padding: 14px 18px 24px;
+  -webkit-overflow-scrolling: touch;
+  user-select: text; -webkit-user-select: text;
+  outline: none;
+}
+.lecture[contenteditable="true"] {
+  caret-color: var(--or);
+  background: rgba(200, 169, 110, 0.025);
+}
+.lecture h1 { font-size: 22px; color: var(--or); margin: 14px 0 8px; font-weight: 600; text-align: center; letter-spacing: 1px; }
+.lecture h2 { font-size: 19px; color: var(--or); margin: 22px 0 10px; border-bottom: 1px solid var(--or-fonce); padding-bottom: 4px; }
+.lecture h3 { font-size: 17px; color: var(--or-clair); margin: 18px 0 8px; font-weight: 600; }
+.lecture h4 { font-size: 15px; color: var(--gris-clair); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+.lecture p { margin-bottom: 12px; text-align: justify; color: var(--beige); hyphens: auto; -webkit-hyphens: auto; }
+.lecture strong { color: var(--or-clair); font-weight: 600; }
+.lecture em { color: var(--gris-clair); }
+.lecture blockquote {
+  border-left: 3px solid var(--or); padding: 8px 14px; margin: 16px 0;
+  background: rgba(200, 169, 110, 0.06); font-style: italic;
+  color: var(--or-clair); border-radius: 0 6px 6px 0;
+}
+.lecture table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+.lecture th, .lecture td { border: 1px solid #333; padding: 6px 8px; text-align: left; }
+.lecture th { background: var(--or-fonce); color: var(--noir); font-weight: 600; }
+.lecture tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.lecture hr { border: none; border-top: 1px solid var(--or-fonce); margin: 20px 0; }
+.lecture ul, .lecture ol { padding-left: 22px; margin-bottom: 12px; }
+.lecture li { margin-bottom: 4px; }
+.lecture pre { background: var(--noir-3); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; color: var(--gris-clair); margin: 10px 0; border: 1px solid #2a2a2a; }
+
+.editeur {
+  flex: 1; background: var(--noir-2); color: var(--beige);
+  border: none; padding: 14px 16px 22px;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 17px; line-height: 1.55;
+  resize: none; width: 100%; outline: none;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.editeur::placeholder { color: #555; font-style: italic; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.active { display: flex; }
+.modal { background: var(--noir-2); border: 1px solid var(--or-fonce); border-radius: 10px; padding: 20px; width: 100%; max-width: 500px; max-height: 85vh; display: flex; flex-direction: column; }
+.modal h2 { color: var(--or); font-size: 20px; margin-bottom: 14px; text-align: center; }
+.modal-body { overflow-y: auto; flex: 1; margin-bottom: 14px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.btn { background: var(--or); color: var(--noir); border: none; padding: 10px 16px; border-radius: 6px; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.btn:active { background: var(--or-fonce); }
+.btn-secondaire { background: transparent; color: var(--or); border: 1px solid var(--or-fonce); }
+.btn-secondaire:active { background: var(--or-fonce); color: var(--noir); }
+.btn-danger { background: var(--rouge); color: var(--noir); }
+
+.menu-options {
+  position: fixed; top: 46px; right: 8px;
+  background: var(--noir-2); border: 1px solid var(--or-fonce);
+  border-radius: 8px; padding: 6px; z-index: 500; display: none;
+  min-width: 240px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+}
+.menu-options.active { display: block; }
+.menu-item { padding: 10px 12px; color: var(--beige); cursor: pointer; border-radius: 4px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.menu-item:active { background: var(--or-fonce); color: var(--noir); }
+.menu-item.danger { color: var(--rouge); }
+.menu-sep { height: 1px; background: #2a2a2a; margin: 4px 8px; }
+
+.import-textarea { width: 100%; height: 200px; background: var(--noir-3); color: var(--beige); border: 1px solid var(--or-fonce); border-radius: 6px; padding: 10px; font-family: inherit; font-size: 14px; resize: vertical; outline: none; }
+.import-textarea:focus { border-color: var(--or); }
+.import-help { font-size: 13px; color: var(--gris); margin-bottom: 8px; font-style: italic; }
+
+.toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: var(--or); color: var(--noir);
+  padding: 10px 18px; border-radius: 20px;
+  font-size: 14px; font-weight: 600;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s; z-index: 2000;
+  white-space: nowrap; max-width: 90vw;
+}
+.toast.active { opacity: 1; }
+
+body.focus-lecture .pane-bas, body.focus-lecture .divider { display: none; }
+body.focus-lecture .pane-haut { flex: 1; }
+body.focus-edit .pane-haut, body.focus-edit .divider { display: none; }
+body.focus-edit .pane-bas { flex: 1; }
+
+@media (max-width: 380px) {
+  .lecture { padding: 12px 14px 20px; }
+  .editeur { padding: 12px 14px 18px; font-size: 16px; }
+  .btn-icon, .btn-nav { width: 32px; height: 32px; font-size: 15px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="btn-nav" id="btn-prev" title="Précédent">‹</button>
+  <select class="chapitre-select" id="chapitre-select"></select>
+  <button class="btn-icon" id="btn-undo" title="Annuler">↶</button>
+  <button class="btn-icon" id="btn-redo" title="Refaire">↷</button>
+  <button class="btn-icon" id="btn-edit" title="Éditer">✎</button>
+  <button class="btn-icon" id="btn-focus-lecture" title="Mode lecture">📖</button>
+  <button class="btn-icon" id="btn-focus-edit" title="Mode écriture">✍︎</button>
+  <button class="btn-icon" id="btn-menu" title="Options">⋮</button>
+  <button class="btn-nav" id="btn-next" title="Suivant">›</button>
+</div>
+
+<div class="split-container">
+  <div class="pane pane-haut">
+    <div class="indicateur-edition" id="ind-edit">ÉDITION</div>
+    <div class="lecture" id="lecture"></div>
+  </div>
+  <div class="divider" id="divider"></div>
+  <div class="pane pane-bas">
+    <textarea class="editeur" id="editeur" placeholder="Tes remarques pour ce chapitre…"></textarea>
+    <div class="compteur-flottant vide" id="compteur-remarques"></div>
+  </div>
+</div>
+
+<div class="menu-options" id="menu-options">
+  <div class="menu-item" data-action="export">📤  Exporter toutes mes remarques (.txt)</div>
+  <div class="menu-item" data-action="export-complet">📦  Export complet (texte + remarques)</div>
+  <div class="menu-item" data-action="export-current">📄  Exporter ce chapitre seulement</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item" data-action="replace-chapter">♻︎  Remplacer le texte du chapitre</div>
+  <div class="menu-item" data-action="reset-chapter-default">↺  Restaurer le texte d'origine</div>
+  <div class="menu-item" data-action="stats">📊  Statistiques globales</div>
+  <div class="menu-sep"></div>
+  <div class="menu-item danger" data-action="clear-current">🗑  Vider mes remarques (ce chapitre)</div>
+  <div class="menu-item danger" data-action="reset-all">⚠  Tout réinitialiser</div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2 id="modal-titre">Titre</h2>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CHAPITRES_PAR_DEFAUT = [
+{ num: 1, titre: "Le foncier et le titre de propriété", contenu: `# CHAPITRE 1
+## LE FONCIER ET LE TITRE DE PROPRIÉTÉ
+
+(Texte intégral à coller depuis la version Word — utilise le menu ⋮ → "Remplacer le texte du chapitre" pour insérer la version complète. Tu peux aussi éditer directement en haut en activant le mode ✎.)
+
+**Idées clés :**
+- Le titre foncier est la pierre angulaire de tout investissement immobilier
+- Distinction titre foncier / lettre d'attribution / acte de vente coutumier
+- Régularisation préventive avant tout investissement physique
+- Koffi-Komla : écart de 4,4 M FCFA sur la sécurisation initiale` },
+{ num: 2, titre: "Les démarches réglementaires", contenu: `# CHAPITRE 2
+## LES DÉMARCHES RÉGLEMENTAIRES
+
+**Idées clés :**
+- Permis de construire et conformité aux règles d'urbanisme
+- COS, CUS, marges de retrait, hauteurs maximales
+- Coût réel du dossier réglementaire complet
+- Écart Koffi-Komla : 3,8 M FCFA` },
+{ num: 3, titre: "Le financement initial du projet", contenu: `# CHAPITRE 3
+## LE FINANCEMENT INITIAL DU PROJET
+
+**Idées clés :**
+- Évaluation des fonds nécessaires avant démarrage
+- Pièges du financement insuffisant
+- Trésorerie initiale et phase de démarrage
+- Écart Koffi-Komla : ~9 M FCFA` },
+{ num: 4, titre: "L'architecte et les études", contenu: `# CHAPITRE 4
+## L'ARCHITECTE ET LES ÉTUDES
+
+**Idées clés :**
+- Pourquoi recourir à un architecte qualifié
+- Honoraires d'architecte : un investissement, pas une dépense
+- Études techniques préalables : géotechnique, topographie, béton armé
+- Écart Koffi-Komla : 24,8 M FCFA` },
+{ num: 5, titre: "La conception et le plan", contenu: `# CHAPITRE 5
+## LA CONCEPTION ET LE PLAN
+
+**Idées clés :**
+- Concevoir pour l'usage, pas pour l'apparence
+- Orientation bioclimatique en climat tropical
+- Modularité et évolutivité du plan
+- Écart Koffi-Komla : 18 à 30 M FCFA` },
+{ num: 6, titre: "Le choix des matériaux", contenu: `# CHAPITRE 6
+## LE CHOIX DES MATÉRIAUX
+
+**Idées clés :**
+- Matériaux locaux vs importés
+- Inertie thermique : parpaing vs BTC vs brique
+- Durabilité et coût total sur 30 ans
+- Écart Koffi-Komla : 10 à 15 M FCFA` },
+{ num: 7, titre: "La structure et le ferraillage", contenu: `# CHAPITRE 7
+## LA STRUCTURE ET LE FERRAILLAGE
+
+**Idées clés :**
+- Ne jamais économiser sur le ferraillage
+- Dosage du béton et résistance attendue
+- Note de calcul béton armé obligatoire
+- Écart Koffi-Komla : 11,5 à 18,5 M FCFA` },
+{ num: 8, titre: "La toiture et le confort thermique", contenu: `# CHAPITRE 8
+## LA TOITURE ET LE CONFORT THERMIQUE
+
+**Idées clés :**
+- Toiture-terrasse vs charpente tôle vs tuile
+- Étanchéité multicouche : poste à ne jamais alléger
+- Isolation thermique sous toiture
+- Écart Koffi-Komla : 9,4 M FCFA` },
+{ num: 9, titre: "La main-d'œuvre et les équipes", contenu: `# CHAPITRE 9
+## LA MAIN-D'ŒUVRE ET LES ÉQUIPES
+
+**Idées clés :**
+- Coût d'un bon professionnel vs un mauvais
+- Fidélisation des équipes sur la durée du chantier
+- Contrats forfaitaires vs régie
+- Écart Koffi-Komla : ~7 à 10 M FCFA` },
+{ num: 10, titre: "La gestion de chantier", contenu: `# CHAPITRE 10
+## LA GESTION DE CHANTIER
+
+**Idées clés :**
+- Suivi quotidien et hebdomadaire du chantier
+- Documentation, photos avant coulage
+- Rôle du conducteur de travaux
+- Écart Koffi-Komla : ~5 à 8 M FCFA` },
+{ num: 11, titre: "Économiser sans sacrifier le résultat", contenu: `# CHAPITRE 11
+## ÉCONOMISER SANS SACRIFIER LE RÉSULTAT
+### L'économie intelligente
+
+**Idées clés :**
+- Trois catégories de postes : irréversible, durable accessible, superficiel renouvelable
+- Substitutions intelligentes (pierre locale, bois local, sanitaires maghrébins, enduit monocouche)
+- Fausses économies à ne jamais commettre (ciment, ferraillage, étanchéité, isolation)
+- Règle des trois questions avant toute coupe budgétaire
+- Écart Koffi-Komla : 15,6 M FCFA` },
+{ num: 12, titre: "L'eau et l'assainissement", contenu: `# CHAPITRE 12
+## L'EAU ET L'ASSAINISSEMENT
+### Autonomie et économies durables
+
+**Idées clés :**
+- Configurations : réseau public, forage privé, système hybride
+- Récupération des eaux pluviales
+- Stockage et pression
+- Assainissement : fosse septique vs fosse toutes eaux vs filtre planté
+- Économies d'eau invisibles
+- Écart Koffi-Komla : 1,3 à 4,8 M FCFA` },
+{ num: 13, titre: "L'énergie : sortir du piège du groupe", contenu: `# CHAPITRE 13
+## L'ÉNERGIE
+### Sortir du piège du groupe électrogène
+
+**Idées clés :**
+- Vrai coût du groupe électrogène sur 30 ans : 65-75 M FCFA
+- Solaire photovoltaïque en 2026
+- Batteries lithium LiFePO4 : 15-20 ans
+- Système hybride réseau + solaire
+- Dimensionnement et pièges du marché local
+- Efficacité énergétique
+- Écart Koffi-Komla : 60 à 75 M FCFA` },
+{ num: 14, titre: "Les coûts cachés et surcoûts évitables", contenu: `# CHAPITRE 14
+## LES COÛTS CACHÉS ET LES SURCOÛTS ÉVITABLES
+
+**Idées clés :**
+- Coûts administratifs sous-estimés
+- Coûts liés au site
+- Coûts de chantier (clôture, gardiennage, eau, électricité, outillage)
+- Coûts de finalisation et raccordement
+- Coûts post-livraison de la première année
+- Provision d'imprévu : 25 à 35 %
+- Écart Koffi-Komla : 8 à 14 M FCFA` },
+{ num: 15, titre: "Le financement intelligent", contenu: `# CHAPITRE 15
+## LE FINANCEMENT INTELLIGENT
+### Crédit, autofinancement, phasage
+
+**Idées clés :**
+- Trois modèles : autofinancement, crédit, mixte
+- Règle des trois tiers
+- Phasage du chantier en 5 phases
+- TEG réel du crédit
+- Pièges de l'autofinancement
+- Règle des trois chiffres
+- Écart Koffi-Komla : 13,5 M FCFA` },
+{ num: 16, titre: "La valorisation et la revente", contenu: `# CHAPITRE 16
+## LA VALORISATION ET LA REVENTE
+### Construire un actif, pas seulement une maison
+
+**Idées clés :**
+- Six facteurs de valeur à la revente
+- Sept décisions de conception qui valorisent à 15 ans
+- Marché de la revente ouest-africain
+- Location vs revente
+- Bien transmissible
+- Écart Koffi-Komla : 77 M FCFA` },
+{ num: 17, titre: "Conclusion — Devenir Komla", contenu: `# CHAPITRE 17
+## DEVENIR KOMLA
+### La synthèse du livre
+
+**Idées clés :**
+- Sept principes transversaux
+- Bilan : 270 à 330 M FCFA d'écart sur 30 ans
+- Lettre au maître d'ouvrage
+- Note personnelle de l'auteur
+- Dix commandements
+- Épilogue` }
+];
+
+const STORAGE_KEY_PRIMARY = 'relecture_livre_v2';
+const STORAGE_KEY_BACKUP = 'relecture_livre_v2_backup';
+
+function chargerEtat() {
+  let etat = null;
+  try { const raw = localStorage.getItem(STORAGE_KEY_PRIMARY); if (raw) etat = JSON.parse(raw); } catch(e) {}
+  if (!etat) {
+    try { const raw = localStorage.getItem(STORAGE_KEY_BACKUP); if (raw) etat = JSON.parse(raw); } catch(e) {}
+  }
+  return etat;
+}
+
+function sauverEtat(etat) {
+  try {
+    const json = JSON.stringify(etat);
+    localStorage.setItem(STORAGE_KEY_PRIMARY, json);
+    setTimeout(() => { try { localStorage.setItem(STORAGE_KEY_BACKUP, json); } catch(e) {} }, 0);
+  } catch(e) { console.error('Sauvegarde', e); }
+}
+
+let etatSauve = chargerEtat();
+
+const etat = {
+  chapitreActif: etatSauve?.chapitreActif ?? 0,
+  splitRatio: etatSauve?.splitRatio ?? 0.55,
+  modeEdition: false,
+  chapitres: (etatSauve?.chapitres && etatSauve.chapitres.length === CHAPITRES_PAR_DEFAUT.length)
+    ? etatSauve.chapitres.map((c, idx) => ({
+        num: c.num ?? CHAPITRES_PAR_DEFAUT[idx].num,
+        titre: c.titre ?? CHAPITRES_PAR_DEFAUT[idx].titre,
+        contenu: c.contenu ?? CHAPITRES_PAR_DEFAUT[idx].contenu,
+        contenuOriginal: c.contenuOriginal ?? CHAPITRES_PAR_DEFAUT[idx].contenu,
+        remarques: c.remarques ?? '',
+        modifie: c.modifie ?? false
+      }))
+    : CHAPITRES_PAR_DEFAUT.map(c => ({
+        num: c.num, titre: c.titre, contenu: c.contenu,
+        contenuOriginal: c.contenu, remarques: '', modifie: false
+      }))
+};
+
+const historiques = etat.chapitres.map(() => ({ passe: [], futur: [] }));
+const HIST_MAX = 50;
+
+function persister() {
+  sauverEtat({ chapitreActif: etat.chapitreActif, splitRatio: etat.splitRatio, chapitres: etat.chapitres });
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function markdownToHtml(md) {
+  const lignes = md.split('\n');
+  let html = '', dansTableau = false, buffTableau = [], dansListe = false, typeListe = null, dansPre = false, buffPre = [];
+
+  function flushTableau() {
+    if (buffTableau.length === 0) return;
+    let t = '<table>';
+    buffTableau.forEach((row, i) => {
+      if (/^\s*\|?[\s\-:]+\|/.test(row)) return;
+      const cells = row.split('|').filter((c, idx, arr) => !(idx === 0 && c.trim() === '') && !(idx === arr.length-1 && c.trim() === ''));
+      const tag = i === 0 ? 'th' : 'td';
+      t += '<tr>' + cells.map(c => `<${tag}>${formatInline(c.trim())}</${tag}>`).join('') + '</tr>';
+    });
+    t += '</table>'; html += t; buffTableau = []; dansTableau = false;
+  }
+  function flushListe() {
+    if (dansListe) { html += typeListe === 'ol' ? '</ol>' : '</ul>'; dansListe = false; typeListe = null; }
+  }
+  function formatInline(s) {
+    let e = escapeHtml(s);
+    e = e.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    e = e.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+    return e;
+  }
+
+  for (let i = 0; i < lignes.length; i++) {
+    const lignetr = lignes[i].trimEnd();
+    if (lignetr.startsWith('```')) {
+      if (dansPre) { html += '<pre>' + escapeHtml(buffPre.join('\n')) + '</pre>'; buffPre = []; dansPre = false; }
+      else dansPre = true;
+      continue;
+    }
+    if (dansPre) { buffPre.push(lignes[i]); continue; }
+    if (lignetr.startsWith('|') && lignetr.includes('|')) {
+      if (!dansTableau) { flushListe(); dansTableau = true; }
+      buffTableau.push(lignetr); continue;
+    } else if (dansTableau) flushTableau();
+    if (lignetr.startsWith('#### ')) { flushListe(); html += `<h4>${formatInline(lignetr.substring(5))}</h4>`; continue; }
+    if (lignetr.startsWith('### '))  { flushListe(); html += `<h3>${formatInline(lignetr.substring(4))}</h3>`; continue; }
+    if (lignetr.startsWith('## '))   { flushListe(); html += `<h2>${formatInline(lignetr.substring(3))}</h2>`; continue; }
+    if (lignetr.startsWith('# '))    { flushListe(); html += `<h1>${formatInline(lignetr.substring(2))}</h1>`; continue; }
+    if (lignetr === '---' || lignetr === '***') { flushListe(); html += '<hr>'; continue; }
+    if (lignetr.startsWith('> ')) { flushListe(); html += `<blockquote>${formatInline(lignetr.substring(2))}</blockquote>`; continue; }
+    const matchUl = lignetr.match(/^[-*]\s+(.+)/);
+    const matchOl = lignetr.match(/^(\d+)\.\s+(.+)/);
+    if (matchUl) {
+      if (!dansListe || typeListe !== 'ul') { flushListe(); html += '<ul>'; dansListe = true; typeListe = 'ul'; }
+      html += `<li>${formatInline(matchUl[1])}</li>`; continue;
+    }
+    if (matchOl) {
+      if (!dansListe || typeListe !== 'ol') { flushListe(); html += '<ol>'; dansListe = true; typeListe = 'ol'; }
+      html += `<li>${formatInline(matchOl[2])}</li>`; continue;
+    }
+    if (lignetr === '') { flushListe(); continue; }
+    flushListe();
+    html += `<p>${formatInline(lignetr)}</p>`;
+  }
+  flushTableau(); flushListe();
+  if (dansPre && buffPre.length > 0) html += '<pre>' + escapeHtml(buffPre.join('\n')) + '</pre>';
+  return html;
+}
+
+function htmlToMarkdown(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  let out = '';
+  function conv(node) {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const tag = node.tagName.toLowerCase();
+    const enf = Array.from(node.childNodes).map(conv).join('');
+    switch (tag) {
+      case 'h1': return `\n# ${enf}\n\n`;
+      case 'h2': return `\n## ${enf}\n\n`;
+      case 'h3': return `\n### ${enf}\n\n`;
+      case 'h4': return `\n#### ${enf}\n\n`;
+      case 'p': return `${enf}\n\n`;
+      case 'strong': case 'b': return `**${enf}**`;
+      case 'em': case 'i': return `*${enf}*`;
+      case 'blockquote': return `\n> ${enf.trim()}\n\n`;
+      case 'hr': return `\n---\n\n`;
+      case 'br': return `\n`;
+      case 'ul': {
+        let s = '\n';
+        node.querySelectorAll(':scope > li').forEach(li => { s += `- ${Array.from(li.childNodes).map(conv).join('').trim()}\n`; });
+        return s + '\n';
+      }
+      case 'ol': {
+        let s = '\n'; let i = 1;
+        node.querySelectorAll(':scope > li').forEach(li => { s += `${i}. ${Array.from(li.childNodes).map(conv).join('').trim()}\n`; i++; });
+        return s + '\n';
+      }
+      case 'li': return enf;
+      case 'table': {
+        let s = '\n'; const rows = node.querySelectorAll('tr'); let f = true;
+        rows.forEach(tr => {
+          const cells = tr.querySelectorAll('th, td');
+          const ligne = Array.from(cells).map(c => Array.from(c.childNodes).map(conv).join('').trim()).join(' | ');
+          s += `| ${ligne} |\n`;
+          if (f) { s += '|' + Array.from(cells).map(() => '---').join('|') + '|\n'; f = false; }
+        });
+        return s + '\n';
+      }
+      case 'pre': case 'code': return '```\n' + node.textContent + '\n```\n';
+      default: return enf;
+    }
+  }
+  Array.from(div.childNodes).forEach(n => { out += conv(n); });
+  out = out.replace(/\n{3,}/g, '\n\n').trim();
+  return out;
+}
+
+const selectEl = document.getElementById('chapitre-select');
+const lectureEl = document.getElementById('lecture');
+const editeurEl = document.getElementById('editeur');
+const compteurRemarquesEl = document.getElementById('compteur-remarques');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+const btnEdit = document.getElementById('btn-edit');
+const btnUndo = document.getElementById('btn-undo');
+const btnRedo = document.getElementById('btn-redo');
+const indEdit = document.getElementById('ind-edit');
+
+function compterMots(s) { const t = (s||'').trim(); return t ? t.split(/\s+/).length : 0; }
+
+function rendreSelect() {
+  selectEl.innerHTML = '';
+  etat.chapitres.forEach((c, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    const aR = c.remarques && c.remarques.trim().length > 0;
+    const aE = c.modifie;
+    const marqueurs = [aR ? '•' : '', aE ? '●' : ''].filter(Boolean).join(' ');
+    opt.textContent = `Ch.${c.num} — ${c.titre}${marqueurs ? '   ' + marqueurs : ''}`;
+    if (idx === etat.chapitreActif) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
+function rendreChapitre() {
+  const ch = etat.chapitres[etat.chapitreActif];
+  if (!ch) return;
+  lectureEl.innerHTML = markdownToHtml(ch.contenu);
+  editeurEl.value = ch.remarques || '';
+  lectureEl.scrollTop = 0; editeurEl.scrollTop = 0;
+  appliquerModeEdition();
+  majCompteurRemarques(); majBoutonsUndoRedo();
+  btnPrev.disabled = etat.chapitreActif === 0;
+  btnNext.disabled = etat.chapitreActif === etat.chapitres.length - 1;
+}
+
+function majCompteurRemarques() {
+  const n = compterMots(editeurEl.value);
+  if (n === 0) { compteurRemarquesEl.classList.add('vide'); compteurRemarquesEl.textContent = ''; }
+  else { compteurRemarquesEl.classList.remove('vide'); compteurRemarquesEl.textContent = n === 1 ? '1 mot' : `${n} mots`; }
+}
+
+function majBoutonsUndoRedo() {
+  if (!etat.modeEdition) { btnUndo.disabled = true; btnRedo.disabled = true; return; }
+  const h = historiques[etat.chapitreActif];
+  btnUndo.disabled = h.passe.length === 0;
+  btnRedo.disabled = h.futur.length === 0;
+}
+
+function appliquerModeEdition() {
+  if (etat.modeEdition) {
+    lectureEl.setAttribute('contenteditable', 'true');
+    lectureEl.setAttribute('spellcheck', 'true');
+    btnEdit.classList.add('actif'); indEdit.classList.add('actif');
+  } else {
+    lectureEl.removeAttribute('contenteditable');
+    lectureEl.removeAttribute('spellcheck');
+    btnEdit.classList.remove('actif'); indEdit.classList.remove('actif');
+  }
+  majBoutonsUndoRedo();
+}
+
+function sauverRemarquesEnCours() { etat.chapitres[etat.chapitreActif].remarques = editeurEl.value; }
+function sauverContenuEnCours() {
+  if (etat.modeEdition) {
+    const nouveau = htmlToMarkdown(lectureEl.innerHTML);
+    const ch = etat.chapitres[etat.chapitreActif];
+    if (nouveau !== ch.contenu) {
+      const h = historiques[etat.chapitreActif];
+      h.passe.push(ch.contenu);
+      if (h.passe.length > HIST_MAX) h.passe.shift();
+      h.futur = [];
+      ch.contenu = nouveau;
+      ch.modifie = nouveau !== ch.contenuOriginal;
+    }
+  }
+}
+
+selectEl.addEventListener('change', e => {
+  sauverRemarquesEnCours(); sauverContenuEnCours();
+  etat.chapitreActif = parseInt(e.target.value);
+  persister(); rendreChapitre(); rendreSelect();
+});
+
+btnPrev.addEventListener('click', () => {
+  if (etat.chapitreActif > 0) {
+    sauverRemarquesEnCours(); sauverContenuEnCours();
+    etat.chapitreActif--;
+    persister(); rendreChapitre(); rendreSelect();
+  }
+});
+
+btnNext.addEventListener('click', () => {
+  if (etat.chapitreActif < etat.chapitres.length - 1) {
+    sauverRemarquesEnCours(); sauverContenuEnCours();
+    etat.chapitreActif++;
+    persister(); rendreChapitre(); rendreSelect();
+  }
+});
+
+btnEdit.addEventListener('click', () => {
+  if (etat.modeEdition) {
+    sauverContenuEnCours();
+    etat.modeEdition = false;
+    appliquerModeEdition();
+    lectureEl.innerHTML = markdownToHtml(etat.chapitres[etat.chapitreActif].contenu);
+    persister(); rendreSelect();
+    toast('Modifications enregistrées');
+  } else {
+    etat.modeEdition = true;
+    appliquerModeEdition();
+    lectureEl.focus();
+    toast('Mode édition');
+  }
+});
+
+let timerHist = null, snapshotEnAttente = null;
+lectureEl.addEventListener('input', () => {
+  if (!etat.modeEdition) return;
+  if (snapshotEnAttente === null) snapshotEnAttente = etat.chapitres[etat.chapitreActif].contenu;
+  if (timerHist) clearTimeout(timerHist);
+  timerHist = setTimeout(() => {
+    const ch = etat.chapitres[etat.chapitreActif];
+    const nouveau = htmlToMarkdown(lectureEl.innerHTML);
+    if (snapshotEnAttente !== null && snapshotEnAttente !== nouveau) {
+      const h = historiques[etat.chapitreActif];
+      h.passe.push(snapshotEnAttente);
+      if (h.passe.length > HIST_MAX) h.passe.shift();
+      h.futur = [];
+      ch.contenu = nouveau;
+      ch.modifie = nouveau !== ch.contenuOriginal;
+      persister(); rendreSelect(); majBoutonsUndoRedo();
+    }
+    snapshotEnAttente = null;
+  }, 700);
+});
+
+btnUndo.addEventListener('click', () => {
+  if (!etat.modeEdition) return;
+  const h = historiques[etat.chapitreActif];
+  if (h.passe.length === 0) return;
+  const ch = etat.chapitres[etat.chapitreActif];
+  h.futur.push(htmlToMarkdown(lectureEl.innerHTML));
+  const prec = h.passe.pop();
+  ch.contenu = prec; ch.modifie = prec !== ch.contenuOriginal;
+  lectureEl.innerHTML = markdownToHtml(prec);
+  persister(); rendreSelect(); majBoutonsUndoRedo();
+});
+
+btnRedo.addEventListener('click', () => {
+  if (!etat.modeEdition) return;
+  const h = historiques[etat.chapitreActif];
+  if (h.futur.length === 0) return;
+  const ch = etat.chapitres[etat.chapitreActif];
+  h.passe.push(htmlToMarkdown(lectureEl.innerHTML));
+  if (h.passe.length > HIST_MAX) h.passe.shift();
+  const suiv = h.futur.pop();
+  ch.contenu = suiv; ch.modifie = suiv !== ch.contenuOriginal;
+  lectureEl.innerHTML = markdownToHtml(suiv);
+  persister(); rendreSelect(); majBoutonsUndoRedo();
+});
+
+let timerSaveRem = null;
+editeurEl.addEventListener('input', () => {
+  etat.chapitres[etat.chapitreActif].remarques = editeurEl.value;
+  majCompteurRemarques();
+  if (timerSaveRem) clearTimeout(timerSaveRem);
+  timerSaveRem = setTimeout(() => { persister(); rendreSelect(); }, 400);
+});
+
+window.addEventListener('blur', () => { sauverRemarquesEnCours(); sauverContenuEnCours(); persister(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { sauverRemarquesEnCours(); sauverContenuEnCours(); persister(); }
+});
+
+const divider = document.getElementById('divider');
+const paneHaut = document.querySelector('.pane-haut');
+const splitContainer = document.querySelector('.split-container');
+
+function appliquerSplit() { paneHaut.style.flex = `0 0 ${(etat.splitRatio * 100).toFixed(1)}%`; }
+appliquerSplit();
+
+let isDragging = false, startY = 0, startRatio = 0;
+function onDragStart(y) { isDragging = true; startY = y; startRatio = etat.splitRatio; divider.classList.add('dragging'); document.body.style.userSelect = 'none'; }
+function onDragMove(y) {
+  if (!isDragging) return;
+  const rect = splitContainer.getBoundingClientRect();
+  let r = startRatio + (y - startY) / rect.height;
+  r = Math.max(0.15, Math.min(0.85, r));
+  etat.splitRatio = r; appliquerSplit();
+}
+function onDragEnd() { if (!isDragging) return; isDragging = false; divider.classList.remove('dragging'); document.body.style.userSelect = ''; persister(); }
+
+divider.addEventListener('mousedown', e => { onDragStart(e.clientY); e.preventDefault(); });
+window.addEventListener('mousemove', e => onDragMove(e.clientY));
+window.addEventListener('mouseup', onDragEnd);
+divider.addEventListener('touchstart', e => { onDragStart(e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+window.addEventListener('touchmove', e => { if (isDragging) { onDragMove(e.touches[0].clientY); e.preventDefault(); } }, { passive: false });
+window.addEventListener('touchend', onDragEnd);
+
+const btnFocusLecture = document.getElementById('btn-focus-lecture');
+const btnFocusEdit = document.getElementById('btn-focus-edit');
+
+btnFocusLecture.addEventListener('click', () => {
+  if (document.body.classList.contains('focus-lecture')) {
+    document.body.classList.remove('focus-lecture'); btnFocusLecture.classList.remove('actif');
+  } else {
+    document.body.classList.remove('focus-edit');
+    document.body.classList.add('focus-lecture');
+    btnFocusLecture.classList.add('actif'); btnFocusEdit.classList.remove('actif');
+  }
+});
+btnFocusEdit.addEventListener('click', () => {
+  if (document.body.classList.contains('focus-edit')) {
+    document.body.classList.remove('focus-edit'); btnFocusEdit.classList.remove('actif');
+  } else {
+    document.body.classList.remove('focus-lecture');
+    document.body.classList.add('focus-edit');
+    btnFocusEdit.classList.add('actif'); btnFocusLecture.classList.remove('actif');
+  }
+});
+
+const btnMenu = document.getElementById('btn-menu');
+const menuOptions = document.getElementById('menu-options');
+
+btnMenu.addEventListener('click', e => { e.stopPropagation(); menuOptions.classList.toggle('active'); });
+document.addEventListener('click', e => {
+  if (!menuOptions.contains(e.target) && e.target !== btnMenu) menuOptions.classList.remove('active');
+});
+
+menuOptions.addEventListener('click', e => {
+  const item = e.target.closest('.menu-item');
+  if (!item) return;
+  const action = item.dataset.action;
+  menuOptions.classList.remove('active');
+  sauverRemarquesEnCours(); sauverContenuEnCours(); persister();
+  if (action === 'export') exporterTout();
+  if (action === 'export-complet') exporterComplet();
+  if (action === 'export-current') exporterChapitre();
+  if (action === 'replace-chapter') ouvrirRemplaceChapitre();
+  if (action === 'reset-chapter-default') restaurerOriginal();
+  if (action === 'stats') afficherStats();
+  if (action === 'clear-current') confirmerViderRemarques();
+  if (action === 'reset-all') confirmerReset();
+});
+
+const modalOverlay = document.getElementById('modal-overlay');
+const modalTitre = document.getElementById('modal-titre');
+const modalBody = document.getElementById('modal-body');
+const modalActions = document.getElementById('modal-actions');
+
+function ouvrirModal(titre, contenuHtml, actions) {
+  modalTitre.textContent = titre;
+  modalBody.innerHTML = contenuHtml;
+  modalActions.innerHTML = '';
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = a.classe || 'btn';
+    btn.textContent = a.label;
+    btn.addEventListener('click', () => {
+      const r = a.action ? a.action() : true;
+      if (r !== false) fermerModal();
+    });
+    modalActions.appendChild(btn);
+  });
+  modalOverlay.classList.add('active');
+}
+function fermerModal() { modalOverlay.classList.remove('active'); }
+modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) fermerModal(); });
+
+function dateFR() { const d = new Date(); const p = n => String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}h${p(d.getMinutes())}`; }
+function dateFichier() { const d = new Date(); const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
+
+function telechargerTxt(nom, contenu) {
+  const blob = new Blob([contenu], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nom;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exporterTout() {
+  let txt = '═══════════════════════════════════════════════════════════\n';
+  txt += '   REMARQUES — CONSTRUIRE EN AFRIQUE SANS SE RUINER\n';
+  txt += '═══════════════════════════════════════════════════════════\n\n';
+  txt += `Date : ${dateFR()}\nAuteur : Samuel DOGBEVI\n\n`;
+  let cR = 0, cM = 0, mT = 0;
+  etat.chapitres.forEach(c => {
+    if (c.remarques && c.remarques.trim()) { cR++; mT += compterMots(c.remarques); }
+    if (c.modifie) cM++;
+  });
+  txt += `Chapitres avec remarques : ${cR} / ${etat.chapitres.length}\n`;
+  txt += `Chapitres avec édition : ${cM}\nTotal mots : ${mT}\n\n`;
+  txt += '───────────────────────────────────────────────────────────\n';
+  etat.chapitres.forEach(c => {
+    const r = (c.remarques || '').trim();
+    txt += `\n\n══════════════════════════════════════════\n`;
+    txt += `CHAPITRE ${c.num} — ${c.titre.toUpperCase()}\n`;
+    if (c.modifie) txt += `[Texte modifié]\n`;
+    txt += `══════════════════════════════════════════\n\n`;
+    txt += r ? r + '\n' : '(Aucune remarque)\n';
+  });
+  txt += '\n\n───────────────────────────────────────────────────────────\n';
+  txt += '              FIN DU DOCUMENT\n';
+  txt += '───────────────────────────────────────────────────────────\n';
+  telechargerTxt(`remarques-livre-${dateFichier()}.txt`, txt);
+  toast('Export téléchargé');
+}
+
+function exporterComplet() {
+  let txt = '═══════════════════════════════════════════════════════════\n';
+  txt += '   LIVRE + REMARQUES — CONSTRUIRE EN AFRIQUE\n';
+  txt += '═══════════════════════════════════════════════════════════\n\n';
+  txt += `Date : ${dateFR()}\nAuteur : Samuel DOGBEVI\n\n`;
+  etat.chapitres.forEach(c => {
+    txt += `\n\n\n═══════════════════════════════════════════════\n`;
+    txt += `  CHAPITRE ${c.num}${c.modifie ? ' (modifié)' : ''}\n`;
+    txt += `═══════════════════════════════════════════════\n\n`;
+    txt += '--- TEXTE ---\n\n' + c.contenu + '\n\n';
+    txt += '--- REMARQUES ---\n\n';
+    const r = (c.remarques || '').trim();
+    txt += r ? r + '\n' : '(Aucune)\n';
+  });
+  telechargerTxt(`livre-complet-${dateFichier()}.txt`, txt);
+  toast('Export complet téléchargé');
+}
+
+function exporterChapitre() {
+  const c = etat.chapitres[etat.chapitreActif];
+  let txt = `CHAPITRE ${c.num} — ${c.titre.toUpperCase()}\nDate : ${dateFR()}\n`;
+  if (c.modifie) txt += `[Texte modifié]\n`;
+  txt += `\n──────────────────────────────\n\n--- TEXTE ---\n\n${c.contenu}\n\n--- REMARQUES ---\n\n`;
+  txt += (c.remarques || '').trim() || '(Aucune remarque)';
+  txt += '\n';
+  telechargerTxt(`chapitre-${String(c.num).padStart(2,'0')}-${dateFichier()}.txt`, txt);
+  toast('Chapitre exporté');
+}
+
+function ouvrirRemplaceChapitre() {
+  const c = etat.chapitres[etat.chapitreActif];
+  const html = `<div class="import-help">Colle le nouveau texte (Markdown) du chapitre ${c.num}.</div><textarea class="import-textarea" id="textarea-import"></textarea>`;
+  ouvrirModal(`Remplacer — Ch. ${c.num}`, html, [
+    { label: 'Annuler', classe: 'btn-secondaire' },
+    { label: 'Remplacer', action: () => {
+        const ta = document.getElementById('textarea-import');
+        const nouveau = ta.value;
+        if (!nouveau.trim()) { toast('Texte vide'); return false; }
+        const h = historiques[etat.chapitreActif];
+        h.passe.push(c.contenu);
+        if (h.passe.length > HIST_MAX) h.passe.shift();
+        h.futur = [];
+        c.contenu = nouveau;
+        c.modifie = nouveau !== c.contenuOriginal;
+        persister(); rendreChapitre(); rendreSelect();
+        toast('Chapitre mis à jour');
+      }
+    }
+  ]);
+  setTimeout(() => { const ta = document.getElementById('textarea-import'); if (ta) ta.value = c.contenu; }, 50);
+}
+
+function restaurerOriginal() {
+  const c = etat.chapitres[etat.chapitreActif];
+  if (!c.modifie) { toast('Pas de modification'); return; }
+  ouvrirModal(`Restaurer — Ch. ${c.num}`, `<p>Revenir à la version d'origine du texte ?<br><br>Tes remarques restent intactes.</p>`, [
+    { label: 'Annuler', classe: 'btn-secondaire' },
+    { label: 'Restaurer', classe: 'btn btn-danger', action: () => {
+        const h = historiques[etat.chapitreActif];
+        h.passe.push(c.contenu);
+        if (h.passe.length > HIST_MAX) h.passe.shift();
+        h.futur = [];
+        c.contenu = c.contenuOriginal; c.modifie = false;
+        persister(); rendreChapitre(); rendreSelect();
+        toast('Original restauré');
+      }
+    }
+  ]);
+}
+
+function afficherStats() {
+  let cA = 0, cM = 0, mT = 0;
+  let detail = '<div style="font-size:14px; line-height: 1.8;">';
+  etat.chapitres.forEach(c => {
+    const r = (c.remarques || '').trim();
+    const m = compterMots(r);
+    if (r) cA++;
+    if (c.modifie) cM++;
+    mT += m;
+    const pR = r ? '<span style="color:var(--or)">•</span>' : '<span style="color:#444">·</span>';
+    const pE = c.modifie ? '<span style="color:var(--or-clair)">●</span>' : '<span style="color:#333">○</span>';
+    detail += `<div>${pR} ${pE} <strong>Ch. ${c.num}</strong> — ${escapeHtml(c.titre)} <span style="color:var(--gris); font-size:12px">${m ? m + ' mot' + (m>1?'s':'') : '—'}</span></div>`;
+  });
+  detail += '</div><div style="margin-top:14px; font-size:11px; color:var(--gris); font-style:italic;">• = remarques | ● = texte édité</div>';
+  const html = `
+    <div style="text-align:center; margin-bottom:14px; padding: 14px; background: rgba(200,169,110,0.08); border-radius: 8px;">
+      <div style="font-size:26px; color:var(--or); font-weight:600;">${cA} / ${etat.chapitres.length}</div>
+      <div style="font-size:12px; color:var(--gris);">chapitres annotés</div>
+      <div style="font-size:18px; color:var(--or-clair); margin-top:8px;">${mT} mot${mT>1?'s':''}</div>
+      <div style="font-size:12px; color:var(--gris);">de remarques</div>
+      ${cM ? `<div style="font-size:14px; color:var(--or); margin-top:8px;">${cM} chapitre${cM>1?'s':''} avec texte édité</div>` : ''}
+    </div>${detail}`;
+  ouvrirModal('Statistiques', html, [{ label: 'Fermer', classe: 'btn-secondaire' }]);
+}
+
+function confirmerViderRemarques() {
+  const c = etat.chapitres[etat.chapitreActif];
+  ouvrirModal(`Vider`, `<p>Supprimer les remarques du <strong>Ch. ${c.num}</strong> ?</p>`, [
+    { label: 'Annuler', classe: 'btn-secondaire' },
+    { label: 'Vider', classe: 'btn btn-danger', action: () => {
+        c.remarques = ''; editeurEl.value = '';
+        majCompteurRemarques(); persister(); rendreSelect();
+        toast('Vidé');
+      }
+    }
+  ]);
+}
+
+function confirmerReset() {
+  ouvrirModal(`Réinitialiser`, `<p style="color:var(--rouge)"><strong>⚠ Attention</strong></p><p>Efface toutes les remarques et annule toutes les modifications de texte.</p>`, [
+    { label: 'Annuler', classe: 'btn-secondaire' },
+    { label: 'Tout effacer', classe: 'btn btn-danger', action: () => {
+        try { localStorage.removeItem(STORAGE_KEY_PRIMARY); localStorage.removeItem(STORAGE_KEY_BACKUP); } catch(e) {}
+        location.reload();
+      }
+    }
+  ]);
+}
+
+const toastEl = document.getElementById('toast');
+let toastTimer = null;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('active');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('active'), 1800);
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW non enregistré', err));
+  });
+}
+
+rendreSelect();
+rendreChapitre();
+</script>
+</body>
+</html>
